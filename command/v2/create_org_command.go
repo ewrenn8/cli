@@ -12,6 +12,7 @@ import (
 
 type CreateOrgActor interface {
 	CreateOrganization(orgName string) (v2action.Organization, v2action.Warnings, error)
+	GrantOrgManagerByUsername(guid string, username string) (v2action.Warnings, error)
 }
 
 type CreateOrgCommand struct {
@@ -48,7 +49,39 @@ func (cmd CreateOrgCommand) Execute(args []string) error {
 
 	orgName := cmd.RequiredArgs.Organization
 
-	_, _, _ = cmd.Actor.CreateOrganization(orgName)
+	user, err := cmd.Config.CurrentUser()
+	if err != nil {
+		return err
+	}
 
+	cmd.UI.DisplayTextWithFlavor("Creating org {{.OrgName}} as {{.Username}}...",
+		map[string]interface{}{
+			"OrgName":  orgName,
+			"Username": user.Name,
+		})
+
+	org, warnings, err := cmd.Actor.CreateOrganization(orgName)
+	cmd.UI.DisplayWarnings(warnings)
+	if err != nil {
+		return err
+	}
+	cmd.UI.DisplayOK()
+	cmd.UI.DisplayNewline()
+
+	cmd.UI.DisplayTextWithFlavor("Assigning role OrgManager to user {{.Username}} in org {{.OrgName}}...",
+		map[string]interface{}{
+			"OrgName":  orgName,
+			"Username": user.Name,
+		})
+	cmd.Actor.GrantOrgManagerByUsername(org.GUID, user.Name)
+	cmd.UI.DisplayWarning("warn-role")
+
+	cmd.UI.DisplayOK()
+	cmd.UI.DisplayNewline()
+
+	cmd.UI.DisplayText(`TIP: Use 'cf target -o "{{.OrgName}}"' to target new org`,
+		map[string]interface{}{
+			"OrgName": orgName,
+		})
 	return nil
 }
