@@ -28,13 +28,31 @@ func (d Deployment) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ccDeployment)
 }
 
+// UnmarshalJSON helps unmarshal a Cloud Controlldr Deployment response.
+func (d *Deployment) UnmarshalJSON(data []byte) error {
+	var ccDeployment struct {
+		GUID          string                `json:"guid,omitempty"`
+		CreatedAt     string                `json:"created_at,omitempty"`
+		Relationships Relationships         `json:"relationships,omitempty"`
+	}
+	err := cloudcontroller.DecodeJSON(data, &ccDeployment)
+	if err != nil {
+		return err
+	}
+
+	d.GUID = ccDeployment.GUID
+	d.CreatedAt = ccDeployment.CreatedAt
+	d.Relationships = ccDeployment.Relationships
+
+	return nil
+}
+
 func (client *Client) CreateApplicationDeployment(dep Deployment) (Warnings, error) {
 	bodyBytes, err := json.Marshal(dep)
 
 	if err != nil {
 		return nil, err
 	}
-
 	request, err := client.newHTTPRequest(requestOptions{
 		RequestName: internal.PostApplicationDeploymentRequest,
 		Body:        bytes.NewReader(bodyBytes),

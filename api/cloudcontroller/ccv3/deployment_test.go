@@ -33,22 +33,16 @@ var _ = Describe("Task", func() {
 			var response string
 			BeforeEach(func() {
 				response = `{
-					"guid": "some-deployment-guid"
-					"state": "DEPLOYING"
-					"droplet": {
-						"guid": "some-droplet-guid"
-					}
-					"created_at": "some-creation-time"
-					"updated_at": "some-later-time"
-					"relationships": {
-						"app": {
-							"data": {
-								"guid": "some-app-guid"
-							}
-						}
-					}
-				}`
-
+  "guid": "some-deployment-guid",
+  "created_at": "2018-04-25T22:42:10Z",
+  "relationships": {
+    "app": {
+      "data": {
+        "guid": "some-app-guid"
+      }
+    }
+  }
+}`
 			})
 
 			Context("when creating the deployment succeeds", func() {
@@ -56,13 +50,13 @@ var _ = Describe("Task", func() {
 					server.AppendHandlers(
 						CombineHandlers(
 							VerifyRequest(http.MethodPost, "/v3/deployments"),
-							VerifyJSON(`{"relationships": {"app": {"data": {"guid": "some-app-guid"}}}}`),
+							VerifyJSON(`{"relationships":{"app":{"data":{"guid":"some-app-guid"}}}}`),
 							RespondWith(http.StatusAccepted, response, http.Header{"X-Cf-Warnings": {"warning"}}),
 						),
 					)
 				})
 
-				It("creates the deployment with no errors and returns all warnings", func() {
+				FIt("creates the deployment with no errors and returns all warnings", func() {
 					Expect(executeErr).ToNot(HaveOccurred())
 					Expect(warnings).To(ConsistOf("warning"))
 				})
