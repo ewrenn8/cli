@@ -20,6 +20,19 @@ type FakeV3Actor struct {
 	cloudControllerAPIVersionReturnsOnCall map[int]struct {
 		result1 string
 	}
+	CreateApplicationDeploymentStub        func(appGUID string) (v3action.Warnings, error)
+	createApplicationDeploymentMutex       sync.RWMutex
+	createApplicationDeploymentArgsForCall []struct {
+		appGUID string
+	}
+	createApplicationDeploymentReturns struct {
+		result1 v3action.Warnings
+		result2 error
+	}
+	createApplicationDeploymentReturnsOnCall map[int]struct {
+		result1 v3action.Warnings
+		result2 error
+	}
 	CreateApplicationInSpaceStub        func(app v3action.Application, spaceGUID string) (v3action.Application, v3action.Warnings, error)
 	createApplicationInSpaceMutex       sync.RWMutex
 	createApplicationInSpaceArgsForCall []struct {
@@ -202,6 +215,57 @@ func (fake *FakeV3Actor) CloudControllerAPIVersionReturnsOnCall(i int, result1 s
 	fake.cloudControllerAPIVersionReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
+}
+
+func (fake *FakeV3Actor) CreateApplicationDeployment(appGUID string) (v3action.Warnings, error) {
+	fake.createApplicationDeploymentMutex.Lock()
+	ret, specificReturn := fake.createApplicationDeploymentReturnsOnCall[len(fake.createApplicationDeploymentArgsForCall)]
+	fake.createApplicationDeploymentArgsForCall = append(fake.createApplicationDeploymentArgsForCall, struct {
+		appGUID string
+	}{appGUID})
+	fake.recordInvocation("CreateApplicationDeployment", []interface{}{appGUID})
+	fake.createApplicationDeploymentMutex.Unlock()
+	if fake.CreateApplicationDeploymentStub != nil {
+		return fake.CreateApplicationDeploymentStub(appGUID)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fake.createApplicationDeploymentReturns.result1, fake.createApplicationDeploymentReturns.result2
+}
+
+func (fake *FakeV3Actor) CreateApplicationDeploymentCallCount() int {
+	fake.createApplicationDeploymentMutex.RLock()
+	defer fake.createApplicationDeploymentMutex.RUnlock()
+	return len(fake.createApplicationDeploymentArgsForCall)
+}
+
+func (fake *FakeV3Actor) CreateApplicationDeploymentArgsForCall(i int) string {
+	fake.createApplicationDeploymentMutex.RLock()
+	defer fake.createApplicationDeploymentMutex.RUnlock()
+	return fake.createApplicationDeploymentArgsForCall[i].appGUID
+}
+
+func (fake *FakeV3Actor) CreateApplicationDeploymentReturns(result1 v3action.Warnings, result2 error) {
+	fake.CreateApplicationDeploymentStub = nil
+	fake.createApplicationDeploymentReturns = struct {
+		result1 v3action.Warnings
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeV3Actor) CreateApplicationDeploymentReturnsOnCall(i int, result1 v3action.Warnings, result2 error) {
+	fake.CreateApplicationDeploymentStub = nil
+	if fake.createApplicationDeploymentReturnsOnCall == nil {
+		fake.createApplicationDeploymentReturnsOnCall = make(map[int]struct {
+			result1 v3action.Warnings
+			result2 error
+		})
+	}
+	fake.createApplicationDeploymentReturnsOnCall[i] = struct {
+		result1 v3action.Warnings
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeV3Actor) CreateApplicationInSpace(app v3action.Application, spaceGUID string) (v3action.Application, v3action.Warnings, error) {
@@ -704,6 +768,8 @@ func (fake *FakeV3Actor) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.cloudControllerAPIVersionMutex.RLock()
 	defer fake.cloudControllerAPIVersionMutex.RUnlock()
+	fake.createApplicationDeploymentMutex.RLock()
+	defer fake.createApplicationDeploymentMutex.RUnlock()
 	fake.createApplicationInSpaceMutex.RLock()
 	defer fake.createApplicationInSpaceMutex.RUnlock()
 	fake.createBitsPackageByApplicationMutex.RLock()
