@@ -21,13 +21,6 @@ import (
 
 //go:generate counterfeiter . ProgressBar
 
-//go:generate counterfeiter . V3PushActor
-
-type V3PushActor interface {
-	Actualize(state pushaction.PushState, progressBar pushaction.ProgressBar) (<-chan pushaction.PushState, <-chan pushaction.Event, <-chan pushaction.Warnings, <-chan error)
-	Conceptualize(setting pushaction.CommandLineSettings, spaceGUID string) ([]pushaction.PushState, pushaction.Warnings, error)
-}
-
 //go:generate counterfeiter . V3PushVersionActor
 
 type V3ZdtPushVersionActor interface {

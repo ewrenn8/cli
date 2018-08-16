@@ -52,10 +52,10 @@ type FakeCloudControllerClient struct {
 		result2 ccv3.Warnings
 		result3 error
 	}
-	CreateApplicationDeploymentStub        func(appGUID string) (ccv3.Warnings, error)
+	CreateApplicationDeploymentStub        func(dep ccv3.Deployment) (ccv3.Warnings, error)
 	createApplicationDeploymentMutex       sync.RWMutex
 	createApplicationDeploymentArgsForCall []struct {
-		appGUID string
+		dep ccv3.Deployment
 	}
 	createApplicationDeploymentReturns struct {
 		result1 ccv3.Warnings
@@ -945,16 +945,16 @@ func (fake *FakeCloudControllerClient) CreateApplicationReturnsOnCall(i int, res
 	}{result1, result2, result3}
 }
 
-func (fake *FakeCloudControllerClient) CreateApplicationDeployment(appGUID string) (ccv3.Warnings, error) {
+func (fake *FakeCloudControllerClient) CreateApplicationDeployment(dep ccv3.Deployment) (ccv3.Warnings, error) {
 	fake.createApplicationDeploymentMutex.Lock()
 	ret, specificReturn := fake.createApplicationDeploymentReturnsOnCall[len(fake.createApplicationDeploymentArgsForCall)]
 	fake.createApplicationDeploymentArgsForCall = append(fake.createApplicationDeploymentArgsForCall, struct {
-		appGUID string
-	}{appGUID})
-	fake.recordInvocation("CreateApplicationDeployment", []interface{}{appGUID})
+		dep ccv3.Deployment
+	}{dep})
+	fake.recordInvocation("CreateApplicationDeployment", []interface{}{dep})
 	fake.createApplicationDeploymentMutex.Unlock()
 	if fake.CreateApplicationDeploymentStub != nil {
-		return fake.CreateApplicationDeploymentStub(appGUID)
+		return fake.CreateApplicationDeploymentStub(dep)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -968,10 +968,10 @@ func (fake *FakeCloudControllerClient) CreateApplicationDeploymentCallCount() in
 	return len(fake.createApplicationDeploymentArgsForCall)
 }
 
-func (fake *FakeCloudControllerClient) CreateApplicationDeploymentArgsForCall(i int) string {
+func (fake *FakeCloudControllerClient) CreateApplicationDeploymentArgsForCall(i int) ccv3.Deployment {
 	fake.createApplicationDeploymentMutex.RLock()
 	defer fake.createApplicationDeploymentMutex.RUnlock()
-	return fake.createApplicationDeploymentArgsForCall[i].appGUID
+	return fake.createApplicationDeploymentArgsForCall[i].dep
 }
 
 func (fake *FakeCloudControllerClient) CreateApplicationDeploymentReturns(result1 ccv3.Warnings, result2 error) {
