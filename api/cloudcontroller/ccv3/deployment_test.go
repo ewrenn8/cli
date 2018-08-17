@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	. "code.cloudfoundry.org/cli/api/cloudcontroller/ccv3"
-	"code.cloudfoundry.org/cli/api/cloudcontroller/ccv3/constant"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/ghttp"
@@ -24,9 +23,7 @@ var _ = Describe("Task", func() {
 		)
 
 		JustBeforeEach(func() {
-			warnings, executeErr = client.CreateApplicationDeployment(Deployment{
-				Relationships: Relationships{constant.RelationshipTypeApplication: Relationship{GUID: "some-app-guid"}},
-			})
+			warnings, executeErr = client.CreateApplicationDeployment("some-app-guid")
 		})
 
 		Context("when the application exists", func() {
@@ -56,12 +53,11 @@ var _ = Describe("Task", func() {
 					)
 				})
 
-				FIt("creates the deployment with no errors and returns all warnings", func() {
+				It("creates the deployment with no errors and returns all warnings", func() {
 					Expect(executeErr).ToNot(HaveOccurred())
 					Expect(warnings).To(ConsistOf("warning"))
 				})
 			})
-
 		})
 	})
 })

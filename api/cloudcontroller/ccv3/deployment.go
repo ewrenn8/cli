@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"code.cloudfoundry.org/cli/api/cloudcontroller"
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccv3/constant"
 	"code.cloudfoundry.org/cli/api/cloudcontroller/ccv3/internal"
 )
 
@@ -28,12 +29,12 @@ func (d Deployment) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ccDeployment)
 }
 
-// UnmarshalJSON helps unmarshal a Cloud Controlldr Deployment response.
+// UnmarshalJSON helps unmarshal a Cloud Controller Deployment response.
 func (d *Deployment) UnmarshalJSON(data []byte) error {
 	var ccDeployment struct {
-		GUID          string                `json:"guid,omitempty"`
-		CreatedAt     string                `json:"created_at,omitempty"`
-		Relationships Relationships         `json:"relationships,omitempty"`
+		GUID          string        `json:"guid,omitempty"`
+		CreatedAt     string        `json:"created_at,omitempty"`
+		Relationships Relationships `json:"relationships,omitempty"`
 	}
 	err := cloudcontroller.DecodeJSON(data, &ccDeployment)
 	if err != nil {
@@ -47,7 +48,10 @@ func (d *Deployment) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (client *Client) CreateApplicationDeployment(dep Deployment) (Warnings, error) {
+func (client *Client) CreateApplicationDeployment(appGUID string) (Warnings, error) {
+	dep := Deployment{
+		Relationships: Relationships{constant.RelationshipTypeApplication: Relationship{GUID: appGUID}},
+	}
 	bodyBytes, err := json.Marshal(dep)
 
 	if err != nil {

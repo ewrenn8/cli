@@ -8,6 +8,7 @@ import (
 	"code.cloudfoundry.org/cli/actor/sharedaction"
 	"code.cloudfoundry.org/cli/actor/v2action"
 	"code.cloudfoundry.org/cli/actor/v3action"
+	"code.cloudfoundry.org/cli/api/cloudcontroller/ccv3"
 	"code.cloudfoundry.org/cli/api/cloudcontroller/ccversion"
 	"code.cloudfoundry.org/cli/command"
 	"code.cloudfoundry.org/cli/command/flag"
@@ -19,18 +20,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//go:generate counterfeiter . ProgressBar
-
-//go:generate counterfeiter . V3PushVersionActor
-
-type V3ZdtPushVersionActor interface {
-	CloudControllerAPIVersion() string
-	GetStreamingLogsForApplicationByNameAndSpace(appName string, spaceGUID string, client v3action.NOAAClient) (<-chan *v3action.LogMessage, <-chan error, v3action.Warnings, error)
-	ZdtPollStart(appGUID string, warningsChannel chan<- v3action.Warnings) error
-	DeployApplication(appGUID string) (v3action.Warnings, error)
+type V3ZeroDowntimeVersionActor interface {
+	ZeroDowntimePollStart(appGUID string, warningsChannel chan<- v3action.Warnings) error
+	CreateDeployment(appGUID string) (v3action.Warnings, error)
 }
 
-type V3ZdtPushCommand struct {
+type v3ZeroDowntimeVersionActor struct {
+	ccClient *ccv3.Client
+}
+
+func (a v3ZeroDowntimeVersionActor) ZeroDowntimePollStart(appGUID string, warningsChannel chan<- v3action.Warnings) error {
+	// TODO: make this do stuff
+	return nil
+}
+
+func (a v3ZeroDowntimeVersionActor) CreateDeployment(appGUID string) (v3action.Warnings, error) {
+	warnings, err := a.ccClient.CreateApplicationDeployment(appGUID)
+
+	return v3action.Warnings(warnings), err
+}
+
+type V3ZeroDowntimePushCommand struct {
 	RequiredArgs flag.AppName `positional-args:"yes"`
 	Buildpacks   []string     `short:"b" description:"Custom buildpack by name (e.g. my-buildpack) or Git URL (e.g. 'https://github.com/cloudfoundry/java-buildpack.git') or Git URL with a branch or tag (e.g. 'https://github.com/cloudfoundry/java-buildpack.git#v3.3.0' for 'v3.3.0' tag). To use built-in buildpacks only, specify 'default' or 'null'"`
 	// Command flag.Command
@@ -64,33 +74,28 @@ type V3ZdtPushCommand struct {
 	Config              command.Config
 	NOAAClient          v3action.NOAAClient
 	Actor               V3PushActor
-	VersionActor        V3ZdtPushVersionActor
+	VersionActor        V3PushVersionActor
 	SharedActor         command.SharedActor
 	AppSummaryDisplayer shared.AppSummaryDisplayer
 	PackageDisplayer    shared.PackageDisplayer
 	ProgressBar         ProgressBar
 
-	OriginalActor       OriginalV3PushActor
-	OriginalV2PushActor OriginalV2PushActor
+	ZeroDowntimeVersionActor V3ZeroDowntimeVersionActor
 }
 
-func (cmd *V3ZdtPushCommand) Setup(config command.Config, ui command.UI) error {
-	if !config.Experimental() {
-		return cmd.OriginalSetup(config, ui)						// REMOVE NO ORIGINAL COMMAND FOR ZDT
-	}
-
+func (cmd *V3ZeroDowntimePushCommand) Setup(config command.Config, ui command.UI) error {
 	cmd.Config = config
 	cmd.UI = ui
 	cmd.ProgressBar = progressbar.NewProgressBar()
 
-	sharedActor := sharedaction.NewActor(config)		// Look into functions and use
+	sharedActor := sharedaction.NewActor(config)
 	cmd.SharedActor = sharedActor
 
 	ccClient, uaaClient, err := shared.NewClients(config, ui, true, "")
 	if err != nil {
 		return err
 	}
-	v3Actor := v3action.NewActor(ccClient, config, sharedActor, uaaClient)		// CREATE A NEW V3ZDTPUSH
+	v3Actor := v3action.NewActor(ccClient, config, sharedActor, uaaClient)
 	cmd.VersionActor = v3Actor
 
 	ccClientV2, uaaClientV2, err := sharedV2.NewClients(config, ui, true)
@@ -103,14 +108,12 @@ func (cmd *V3ZdtPushCommand) Setup(config command.Config, ui command.UI) error {
 
 	cmd.NOAAClient = shared.NewNOAAClient(ccClient.Info.Logging(), config, uaaClient, ui)
 
+	cmd.ZeroDowntimeVersionActor = v3ZeroDowntimeVersionActor{ccClient: ccClient}
+
 	return nil
 }
 
-func (cmd V3ZdtPushCommand) Execute(args []string) error {
-	if !cmd.Config.Experimental() {				// DONT NEED BC NO ORIGINAL COMMAND
-		return cmd.OriginalExecute(args)
-	}
-
+func (cmd V3ZeroDowntimePushCommand) Execute(args []string) error {
 	err := command.MinimumAPIVersionCheck(cmd.VersionActor.CloudControllerAPIVersion(), ccversion.MinVersionV3)
 	if err != nil {
 		return err
@@ -152,7 +155,7 @@ func (cmd V3ZdtPushCommand) Execute(args []string) error {
 
 	for _, state := range pushState {
 		log.WithField("app_name", state.Application.Name).Info("actualizing")
-		stateStream, eventStream, warningsStream, errorStream := cmd.Actor.Actualize(state, cmd.ProgressBar) // make zdt actualize?
+		stateStream, eventStream, warningsStream, errorStream := cmd.Actor.Actualize(state, cmd.ProgressBar)
 		updatedState, err := cmd.processApplyStreams(state.Application.Name, stateStream, eventStream, warningsStream, errorStream)
 		if err != nil {
 			return err
@@ -160,7 +163,8 @@ func (cmd V3ZdtPushCommand) Execute(args []string) error {
 
 		cmd.UI.DisplayNewline()
 		cmd.UI.DisplayText("Waiting for app to start...")
-		warnings, err := cmd.VersionActor.DeployApplication(updatedState.Application.GUID)
+		//warnings, err := cmd.VersionActor.RestartApplication(updatedState.Application.GUID)
+		warnings, err := cmd.ZeroDowntimeVersionActor.CreateDeployment(updatedState.Application.GUID)
 		cmd.UI.DisplayWarnings(warnings)
 		if err != nil {
 			return err
@@ -179,7 +183,8 @@ func (cmd V3ZdtPushCommand) Execute(args []string) error {
 			}
 		}()
 
-		err = cmd.VersionActor.ZdtPollStart(updatedState.Application.GUID, pollWarnings)
+		//err = cmd.VersionActor.PollStart(updatedState.Application.GUID, pollWarnings)
+		err = cmd.ZeroDowntimeVersionActor.ZeroDowntimePollStart(updatedState.Application.GUID, pollWarnings)
 		done <- true
 
 		if err != nil {
@@ -197,7 +202,7 @@ func (cmd V3ZdtPushCommand) Execute(args []string) error {
 	return nil
 }
 
-func (cmd V3ZdtPushCommand) processApplyStreams(
+func (cmd V3ZeroDowntimePushCommand) processApplyStreams(
 	appName string,
 	stateStream <-chan pushaction.PushState,
 	eventStream <-chan pushaction.Event,
@@ -247,7 +252,7 @@ func (cmd V3ZdtPushCommand) processApplyStreams(
 	return updateState, nil
 }
 
-func (cmd V3ZdtPushCommand) processEvent(appName string, event pushaction.Event) bool {
+func (cmd V3ZeroDowntimePushCommand) processEvent(appName string, event pushaction.Event) bool {
 	log.Infoln("received apply event:", event)
 
 	switch event {
@@ -287,7 +292,7 @@ func (cmd V3ZdtPushCommand) processEvent(appName string, event pushaction.Event)
 	return false
 }
 
-func (cmd V3ZdtPushCommand) getLogs(logStream <-chan *v3action.LogMessage, errStream <-chan error) {
+func (cmd V3ZeroDowntimePushCommand) getLogs(logStream <-chan *v3action.LogMessage, errStream <-chan error) {
 	for {
 		select {
 		case logMessage, open := <-logStream:
@@ -310,7 +315,7 @@ func (cmd V3ZdtPushCommand) getLogs(logStream <-chan *v3action.LogMessage, errSt
 	}
 }
 
-func (cmd V3ZdtPushCommand) GetCommandLineSettings() (pushaction.CommandLineSettings, error) {
+func (cmd V3ZeroDowntimePushCommand) GetCommandLineSettings() (pushaction.CommandLineSettings, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return pushaction.CommandLineSettings{}, err

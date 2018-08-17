@@ -11,7 +11,6 @@ import (
 
 type V3Actor interface {
 	CloudControllerAPIVersion() string
-	CreateApplicationDeployment(appGUID string) (v3action.Warnings, error)
 	CreateApplicationInSpace(app v3action.Application, spaceGUID string) (v3action.Application, v3action.Warnings, error)
 	CreateBitsPackageByApplication(appGUID string) (v3action.Package, v3action.Warnings, error)
 	GetApplicationByNameAndSpace(appName string, spaceGUID string) (v3action.Application, v3action.Warnings, error)

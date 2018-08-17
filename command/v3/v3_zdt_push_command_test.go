@@ -23,72 +23,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 )
 
-type Step struct {
-	Error    error
-	Event    pushaction.Event
-	Warnings pushaction.Warnings
-}
-
-func FillInValues(tuples []Step, state pushaction.PushState) func(pushaction.PushState, pushaction.ProgressBar) (<-chan pushaction.PushState, <-chan pushaction.Event, <-chan pushaction.Warnings, <-chan error) {
-	return func(pushaction.PushState, pushaction.ProgressBar) (<-chan pushaction.PushState, <-chan pushaction.Event, <-chan pushaction.Warnings, <-chan error) {
-		stateStream := make(chan pushaction.PushState)
-
-		eventStream := make(chan pushaction.Event)
-		warningsStream := make(chan pushaction.Warnings)
-		errorStream := make(chan error)
-
-		go func() {
-			defer close(stateStream)
-			defer close(eventStream)
-			defer close(warningsStream)
-			defer close(errorStream)
-
-			for _, tuple := range tuples {
-				warningsStream <- tuple.Warnings
-				if tuple.Error != nil {
-					errorStream <- tuple.Error
-					return
-				} else {
-					eventStream <- tuple.Event
-				}
-			}
-
-			stateStream <- state
-			eventStream <- pushaction.Complete
-		}()
-
-		return stateStream, eventStream, warningsStream, errorStream
-	}
-}
-
-type LogEvent struct {
-	Log   *v3action.LogMessage
-	Error error
-}
-
-func ReturnLogs(logevents []LogEvent, passedWarnings v3action.Warnings, passedError error) func(appName string, spaceGUID string, client v3action.NOAAClient) (<-chan *v3action.LogMessage, <-chan error, v3action.Warnings, error) {
-	return func(appName string, spaceGUID string, client v3action.NOAAClient) (<-chan *v3action.LogMessage, <-chan error, v3action.Warnings, error) {
-		logStream := make(chan *v3action.LogMessage)
-		errStream := make(chan error)
-		go func() {
-			defer close(logStream)
-			defer close(errStream)
-
-			for _, log := range logevents {
-				if log.Log != nil {
-					logStream <- log.Log
-				}
-				if log.Error != nil {
-					errStream <- log.Error
-				}
-			}
-		}()
-
-		return logStream, errStream, passedWarnings, passedError
-	}
-}
-
-var _ = FDescribe("v3-push Command", func() {
+var _ = Describe("v3-push Command", func() {
 	var (
 		cmd              v3.V3PushCommand
 		testUI           *ui.UI
